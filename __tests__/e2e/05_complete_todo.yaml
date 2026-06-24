@@ -1,0 +1,29 @@
+appId: com.silveyy.todo
+---
+- evalScript: ${output.timestamp = new Date().getTime(); output.listName = 'Complete Todo List ' + output.timestamp; output.todoTitle = 'Toggle todo ' + output.timestamp}
+- launchApp:
+    clearState: true
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: ${TEST_USER_A_EMAIL}
+      PASSWORD: ${TEST_USER_A_PASSWORD}
+- tapOn:
+    id: "create-list-fab"
+- tapOn:
+    id: "create-list-input"
+- inputText: ${output.listName}
+- tapOn:
+    id: "create-list-submit"
+- tapOn:
+    id: "add-todo-fab"
+- tapOn:
+    id: "todo-title-input"
+- inputText: ${output.todoTitle}
+- tapOn:
+    id: "todo-submit-button"
+- assertVisible: ${output.todoTitle}
+- tapOn: ${'Active ' + output.todoTitle}
+- assertVisible: ${'Completed ' + output.todoTitle}
+- tapOn: ${'Completed ' + output.todoTitle}
+- assertVisible: ${'Active ' + output.todoTitle}

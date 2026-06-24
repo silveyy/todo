@@ -1,0 +1,13 @@
+# Parameters: EMAIL, PASSWORD
+# Usage: runFlow: helpers/login.yaml with params EMAIL, PASSWORD
+appId: com.silveyy.todo
+---
+- tapOn:
+    id: "email-input"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "password-input"
+- inputText: ${PASSWORD}
+- tapOn:
+    id: "sign-in-button"
+- assertVisible: "My Lists"

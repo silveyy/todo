@@ -1,0 +1,38 @@
+appId: com.silveyy.todo
+---
+- evalScript: ${output.timestamp = new Date().getTime(); output.listName = 'E2E Test List ' + output.timestamp}
+- launchApp:
+    clearState: true
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: ${TEST_USER_A_EMAIL}
+      PASSWORD: ${TEST_USER_A_PASSWORD}
+- tapOn:
+    id: "create-list-fab"
+- assertVisible:
+    id: "create-list-modal"
+- tapOn:
+    id: "create-list-input"
+- inputText: ${output.listName}
+- tapOn:
+    id: "create-list-submit"
+- assertVisible:
+    id: "list-detail-screen"
+- tapOn:
+    id: "add-todo-fab"
+- assertVisible:
+    id: "todo-form-modal"
+- tapOn:
+    id: "todo-title-input"
+- inputText: "Buy groceries"
+- tapOn:
+    id: "todo-priority-high"
+- tapOn:
+    id: "todo-due-date-input"
+- inputText: "2027-12-31"
+- tapOn:
+    id: "todo-submit-button"
+- assertVisible: "Buy groceries"
+- tapOn: "Active Buy groceries"
+- assertVisible: "Completed Buy groceries"

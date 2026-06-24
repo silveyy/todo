@@ -1,0 +1,20 @@
+appId: com.silveyy.todo
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Welcome back"
+- runFlow:
+    file: helpers/login.yaml
+    env:
+      EMAIL: ${TEST_USER_A_EMAIL}
+      PASSWORD: ${TEST_USER_A_PASSWORD}
+- assertVisible:
+    id: "lists-screen"
+- tapOn:
+    id: "tab-settings"
+- assertVisible: "Settings"
+- tapOn:
+    id: "sign-out-button"
+- assertVisible: "Welcome back"
+- assertVisible:
+    id: "sign-in-button"
