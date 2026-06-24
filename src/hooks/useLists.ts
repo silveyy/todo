@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 
 import * as listsApi from '@/api/listsApi';
+import { IS_SUPABASE_CONFIGURED } from '@/api/supabaseClient';
 import * as listRepo from '@/db/listRepository';
 import * as syncQueueRepo from '@/db/syncQueueRepository';
 import { useAuthStore } from '@/store/authStore';
@@ -89,6 +90,12 @@ export function useLists(): UseListsResult {
       return;
     }
 
+    // In local mode there is no remote to sync from — SQLite is the source of truth.
+    if (!IS_SUPABASE_CONFIGURED) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const remoteLists = await listsApi.getLists();
       const detailedLists = await Promise.all(remoteLists.map(async (list) => listsApi.getList(list.id)));
@@ -156,8 +163,12 @@ export function useLists(): UseListsResult {
           invited_by: null,
           joined_at: newList.created_at,
         });
-        syncQueueRepo.enqueue('list', newList.id, 'insert', { ...newList });
-        useSyncStore.getState().incrementPendingCount();
+        // Only enqueue for remote sync when Supabase is configured.
+        if (IS_SUPABASE_CONFIGURED) {
+          syncQueueRepo.enqueue('list', newList.id, 'insert', { ...newList });
+          useSyncStore.getState().incrementPendingCount();
+          syncIfOnline();
+        }
         useSyncStore.getState().bumpDataVersion();
         syncIfOnline();
         setError(null);
@@ -197,7 +208,7 @@ export function useLists(): UseListsResult {
 
       try {
         listRepo.upsertList(updated);
-        if (Object.keys(queuePatch).length > 0) {
+        if (Object.keys(queuePatch).length > 0 && IS_SUPABASE_CONFIGURED) {
           syncQueueRepo.enqueue('list', id, 'update', queuePatch);
           useSyncStore.getState().incrementPendingCount();
           syncIfOnline();
@@ -218,10 +229,12 @@ export function useLists(): UseListsResult {
     (id: string): void => {
       try {
         listRepo.softDeleteList(id);
-        syncQueueRepo.enqueue('list', id, 'delete', {});
-        useSyncStore.getState().incrementPendingCount();
+        if (IS_SUPABASE_CONFIGURED) {
+          syncQueueRepo.enqueue('list', id, 'delete', {});
+          useSyncStore.getState().incrementPendingCount();
+          syncIfOnline();
+        }
         useSyncStore.getState().bumpDataVersion();
-        syncIfOnline();
         setError(null);
         void refresh();
       } catch (deleteError) {
@@ -230,7 +243,7 @@ export function useLists(): UseListsResult {
         throw new Error(message);
       }
     },
-    [refresh],
+    [refresh, syncIfOnline],
   );
 
   const inviteToList = useCallback(
@@ -239,6 +252,12 @@ export function useLists(): UseListsResult {
       email: string,
       role: Exclude<ListRole, 'owner'>,
     ): Promise<string> => {
+      if (!IS_SUPABASE_CONFIGURED) {
+        throw new Error(
+          'Sharing is not available in local mode. Set up a Supabase account in .env to share lists with others.',
+        );
+      }
+
       const normalizedEmail = email.trim().toLowerCase();
 
       if (!normalizedEmail) {

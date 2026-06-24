@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, Text } from 'react-native';
 
+import { IS_SUPABASE_CONFIGURED } from '@/api/supabaseClient';
 import { colors, radii, spacing, typography } from '@/components/ui';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
@@ -10,6 +11,8 @@ function getPendingLabel(pendingCount: number): string {
 }
 
 export function SyncStatusBanner() {
+  // In local mode there is no sync — hide the banner entirely.
+  if (!IS_SUPABASE_CONFIGURED) return null;
   const { isOnline } = useNetworkStatus();
   const { error, pendingCount, status } = useSync();
   const opacity = useRef(new Animated.Value(0)).current;

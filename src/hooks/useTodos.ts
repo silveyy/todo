@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 
 import * as todosApi from '@/api/todosApi';
+import { IS_SUPABASE_CONFIGURED } from '@/api/supabaseClient';
 import * as syncQueueRepository from '@/db/syncQueueRepository';
 import * as todoRepository from '@/db/todoRepository';
 import { useAuthStore } from '@/store/authStore';
@@ -91,6 +92,12 @@ export function useTodos(listId: string) {
       return;
     }
 
+    // In local mode there is no remote to sync from.
+    if (!IS_SUPABASE_CONFIGURED) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const remoteTodos = await todosApi.getTodos(listId);
       remoteTodos.forEach((todo) => {
@@ -147,22 +154,25 @@ export function useTodos(listId: string) {
 
     try {
       todoRepository.upsertTodo(todo);
-      syncQueueRepository.enqueue('todo', todo.id, 'insert', {
-        id: todo.id,
-        list_id: todo.list_id,
-        title: todo.title,
-        notes: todo.notes,
-        completed: todo.completed,
-        completed_at: todo.completed_at,
-        completed_by: todo.completed_by,
-        due_date: todo.due_date,
-        priority: todo.priority,
-        position: todo.position,
-        created_by: todo.created_by,
-        created_at: todo.created_at,
-        updated_at: todo.updated_at,
-      });
-      incrementPendingCount();
+      if (IS_SUPABASE_CONFIGURED) {
+        syncQueueRepository.enqueue('todo', todo.id, 'insert', {
+          id: todo.id,
+          list_id: todo.list_id,
+          title: todo.title,
+          notes: todo.notes,
+          completed: todo.completed,
+          completed_at: todo.completed_at,
+          completed_by: todo.completed_by,
+          due_date: todo.due_date,
+          priority: todo.priority,
+          position: todo.position,
+          created_by: todo.created_by,
+          created_at: todo.created_at,
+          updated_at: todo.updated_at,
+        });
+        incrementPendingCount();
+        syncIfOnline();
+      }
       useSyncStore.getState().bumpDataVersion();
       syncIfOnline();
       loadTodos(false);
@@ -200,24 +210,21 @@ export function useTodos(listId: string) {
 
     try {
       todoRepository.upsertTodo(updatedTodo);
-      syncQueueRepository.enqueue('todo', id, 'update', {
-        ...(Object.prototype.hasOwnProperty.call(patch, 'title') ? { title: updatedTodo.title } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'notes') ? { notes: updatedTodo.notes } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'due_date') ? { due_date: updatedTodo.due_date } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'priority') ? { priority: updatedTodo.priority } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'position') ? { position: updatedTodo.position } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'completed')
-          ? { completed: updatedTodo.completed }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'completed_at')
-          ? { completed_at: updatedTodo.completed_at }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch, 'completed_by')
-          ? { completed_by: updatedTodo.completed_by }
-          : {}),
-        updated_at: updatedTodo.updated_at,
-      });
-      incrementPendingCount();
+      if (IS_SUPABASE_CONFIGURED) {
+        syncQueueRepository.enqueue('todo', id, 'update', {
+          ...(Object.prototype.hasOwnProperty.call(patch, 'title') ? { title: updatedTodo.title } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'notes') ? { notes: updatedTodo.notes } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'due_date') ? { due_date: updatedTodo.due_date } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'priority') ? { priority: updatedTodo.priority } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'position') ? { position: updatedTodo.position } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'completed') ? { completed: updatedTodo.completed } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'completed_at') ? { completed_at: updatedTodo.completed_at } : {}),
+          ...(Object.prototype.hasOwnProperty.call(patch, 'completed_by') ? { completed_by: updatedTodo.completed_by } : {}),
+          updated_at: updatedTodo.updated_at,
+        });
+        incrementPendingCount();
+        syncIfOnline();
+      }
       useSyncStore.getState().bumpDataVersion();
       syncIfOnline();
       loadTodos(false);
@@ -252,8 +259,11 @@ export function useTodos(listId: string) {
   const deleteTodo = useCallback((id: string): void => {
     try {
       todoRepository.softDeleteTodo(id);
-      syncQueueRepository.enqueue('todo', id, 'delete', { id, deleted_at: nowIsoString() });
-      incrementPendingCount();
+      if (IS_SUPABASE_CONFIGURED) {
+        syncQueueRepository.enqueue('todo', id, 'delete', { id, deleted_at: nowIsoString() });
+        incrementPendingCount();
+        syncIfOnline();
+      }
       useSyncStore.getState().bumpDataVersion();
       syncIfOnline();
       loadTodos(false);
@@ -270,12 +280,15 @@ export function useTodos(listId: string) {
 
     try {
       todoRepository.updateTodoPositions(updates);
-      for (const update of updates) {
-        syncQueueRepository.enqueue('todo', update.id, 'update', {
-          position: update.position,
-          updated_at: nowIsoString(),
-        });
-        incrementPendingCount();
+      if (IS_SUPABASE_CONFIGURED) {
+        for (const update of updates) {
+          syncQueueRepository.enqueue('todo', update.id, 'update', {
+            position: update.position,
+            updated_at: nowIsoString(),
+          });
+          incrementPendingCount();
+        }
+        syncIfOnline();
       }
       useSyncStore.getState().bumpDataVersion();
       syncIfOnline();

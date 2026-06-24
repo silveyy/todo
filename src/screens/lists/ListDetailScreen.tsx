@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { IS_SUPABASE_CONFIGURED } from '@/api/supabaseClient';
 import { MemberAvatarRow } from '@/components/lists';
 import { TodoList } from '@/components/todos';
 import { Button, EmptyState, TextInput, theme } from '@/components/ui';
@@ -147,14 +148,16 @@ export function ListDetailScreen({ navigation, route }: Props) {
             )}
           </View>
 
-          <Button
-            onPress={() => setIsShareVisible(true)}
-            size="sm"
-            testID="share-button"
-            variant="secondary"
-          >
-            Share
-          </Button>
+          {IS_SUPABASE_CONFIGURED && (
+            <Button
+              onPress={() => setIsShareVisible(true)}
+              size="sm"
+              testID="share-button"
+              variant="secondary"
+            >
+              Share
+            </Button>
+          )}
         </View>
 
         <View style={styles.membersSection}>

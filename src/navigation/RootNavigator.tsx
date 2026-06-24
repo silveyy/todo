@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import * as listsApi from '@/api/listsApi';
+import { IS_SUPABASE_CONFIGURED } from '@/api/supabaseClient';
 import { theme } from '@/components/ui';
 import * as listRepo from '@/db/listRepository';
 import { useAuth } from '@/hooks/useAuth';
@@ -49,7 +50,7 @@ export function RootNavigator() {
   }, [initialize]);
 
   useEffect(() => {
-    if (!session?.user.id) {
+    if (!session?.user.id || !IS_SUPABASE_CONFIGURED) {
       syncEngine.stop();
       return;
     }
@@ -62,7 +63,8 @@ export function RootNavigator() {
   }, [session?.user.id]);
 
   useEffect(() => {
-    if (!session || !pendingInviteToken) {
+    // Deep-link invite acceptance requires a Supabase connection.
+    if (!session || !pendingInviteToken || !IS_SUPABASE_CONFIGURED) {
       return;
     }
 
